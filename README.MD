@@ -10,14 +10,17 @@ I populate the db with some crm/cases on each startup to make the endpoints usef
 
 ## **Endpoints**
 (by default all on localhost:8080)
-GET - http://localhost:8080/aggregated  - Get aggregated results
-GET - http://localhost:8080/searchByStatus?status=Close - Search by status
-GET - http://localhost:8080/searchByError?error=1 - Search by error
-GET - http://localhost:8080/searchByProvider?provider=1 Search by provider
-**PUT** - http://localhost:8080/refresh      -Trigger cases refresh
+- GET - http://localhost:8080/aggregated  - Get aggregated results
+
+- GET - http://localhost:8080/searchByStatus?status=Close - Search by status
+
+- GET - http://localhost:8080/searchByError?error=1 - Search by error
+
+- GET - http://localhost:8080/searchByProvider?provider=1 Search by provider
+
+- **PUT** - http://localhost:8080/refresh      -Trigger cases refresh
 
 
-http://localhost:8080/searchByStatus?status=Close
 
 
 
