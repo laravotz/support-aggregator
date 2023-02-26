@@ -31,7 +31,7 @@ http://localhost:8080/searchByStatus?status=Close
 - Search support
 - Restart handling
 - Handle of 'refresh' requests bombing from users and concurrent calls/
--
+
 **Non functional requirements:**
 
 - Low scale
