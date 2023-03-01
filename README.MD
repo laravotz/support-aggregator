@@ -10,15 +10,15 @@ I populate the db with some crm/cases on each startup to make the endpoints usef
 
 ## **Endpoints**
 (by default all on localhost:8080)
-GET - http://localhost:8080/results  - Get last refresh results
-GET - http://localhost:8080/searchByStatus?status=Close - Search by status
-GET - http://localhost:8080/searchByError?error=1 - Search by error
-GET - http://localhost:8080/searchByProvider?provider=1 Search by provider
-**PUT** - http://localhost:8080/refresh      -Trigger cases refresh
+- GET - http://localhost:8080/results  - Get last refresh results
 
+- GET - http://localhost:8080/searchByStatus?status=Close - Search by status
 
-http://localhost:8080/searchByStatus?status=Close
+- GET - http://localhost:8080/searchByError?error=1 - Search by error
 
+- GET - http://localhost:8080/searchByProvider?provider=1 Search by provider
+
+- **PUT** - http://localhost:8080/refresh      -Trigger cases refresh
 
 
 ## **Requirements**
@@ -30,8 +30,8 @@ http://localhost:8080/searchByStatus?status=Close
 - Online refresh button
 - Search support
 - Restart handling
-- Handle of 'refresh' requests bombing from users and concurrent calls/
--
+- Handle of 'refresh' requests bombing from users and concurrent calls
+
 **Non functional requirements:**
 
 - Low scale
