@@ -33,7 +33,7 @@ I populate the db with some crm/cases on each startup to make the endpoints usef
 - Online refresh button
 - Search support
 - Restart handling
-- Handle of 'refresh' requests bombing from users and concurrent calls/
+- Handle of 'refresh' requests bombing from users and concurrent calls
 
 **Non functional requirements:**
 
