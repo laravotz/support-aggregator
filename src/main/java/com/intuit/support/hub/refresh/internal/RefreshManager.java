@@ -5,6 +5,8 @@ import com.intuit.support.hub.aggregate.client.entities.AggregationResult;
 import com.intuit.support.hub.fetch.client.FetchClient;
 import com.intuit.support.hub.fetch.client.responses.RefreshCRMResult;
 import com.intuit.support.hub.refresh.client.responses.RefreshRequestResponse;
+import com.intuit.support.hub.refresh.client.responses.RefreshResult;
+import com.intuit.support.hub.utils.Cache;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,8 +17,11 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -30,15 +35,30 @@ import java.util.concurrent.locks.ReentrantLock;
  * In order to avoid concurrent refreshes (race conditions) uses a lock.
  */
 public class RefreshManager {
-    private AtomicReference<Collection<AggregationResult>> aggResult = new AtomicReference<>();
-    private AtomicReference<LocalDateTime> lastUpdateTime = new AtomicReference<>();
+    private final String lastRefreshResultKey = "lastRefreshResult";
+    private final String lastUpdateTimeKey = "lastUpdateTime";
+    private final String currUpdateStartTimeKey = "currUpdateStartTime";
+    private final String lastUpdateDurationKey = "lastUpdateDuration";
 
-    private AtomicReference<LocalDateTime> currUpdateStartTime = new AtomicReference<>();
+    private static Cache<String, Object> cache = new Cache<>();
+
+    private RefreshManager() {
+        RefreshResult refreshResult = new RefreshResult(Collections.emptyList(), Arrays.asList("No successful refresh after service start yet"));
+        cache.put(lastRefreshResultKey, new AtomicReference<RefreshResult>(refreshResult));
+        cache.put(lastUpdateTimeKey, new AtomicReference<>(LocalDateTime.of(1970,1,1,1,1)));
+        cache.put(currUpdateStartTimeKey, new AtomicReference<>(LocalDateTime.of(1970,1,1,1,1)));
+        cache.put(lastUpdateDurationKey, new AtomicLong(1));
+    }
+
+    // private AtomicReference<Collection<AggregationResult>> aggResult = new AtomicReference<>();
+    // private AtomicReference<LocalDateTime> lastUpdateTime = new AtomicReference<>();
+
+    // private AtomicReference<LocalDateTime> currUpdateStartTime = new AtomicReference<>();
 
     private Lock updateLock = new ReentrantLock();
 
-    @Value("${user.interval}")
-    private long userInterval;
+    @Value("${user.interval.seconds}")
+    private long userIntervalSeconds;
 
     @Value("${wait.duration.multiplier}")
     private long waitDurationMultiplier;
@@ -48,28 +68,40 @@ public class RefreshManager {
     @Autowired
     private FetchClient fetchClient;
 
-    private AtomicLong lastUpdateDuration = new AtomicLong(10);
+    // private AtomicLong lastUpdateDuration = new AtomicLong(10);
 
     @PostConstruct
     public void init() {
+        log.debug("starting to perform refresh on startup");
         performRefresh();
     }
 
-     @Scheduled(fixedDelayString = "${refresh.interval}")
      /**
       * performs a refresh by fetching the cases and then aggregate it.
       * In order to avoid concurrent refreshes, uses a lock and returns if the lock can't be acquired.
       */
+     @Scheduled(fixedDelayString = "${refresh.interval.minutes}", timeUnit =  TimeUnit.MINUTES)
      boolean performRefresh() {
          log.debug("Attempting to perform scheduled refresh");
         if (updateLock.tryLock()) {
             try {
-                LocalDateTime start = LocalDateTime.now();
-                currUpdateStartTime.set(start);
+                LocalDateTime start = setCacheTime(currUpdateStartTimeKey);
+
+                // refresh all systeams
                 List<RefreshCRMResult> refreshed = fetchClient.refreshAll();
-                aggregateClient.updateAggregation(refreshed.stream().filter(x -> x.getError() == null).flatMap(x -> x.getCases().stream()).toList());
-                LocalDateTime endTime = LocalDateTime.now();
-                lastUpdateTime.set(endTime);
+
+                // create aggregated results
+                Collection<AggregationResult> aggRes = aggregateClient.aggregate(refreshed.stream().filter(x -> x.getError() == null).flatMap(x -> x.getCases().stream()).toList());
+
+                RefreshResult refreshResult = new RefreshResult();
+                refreshResult.setAggResult(aggRes);
+                refreshResult.setErrors(refreshed.stream().filter(x -> x.getError() != null).map(x -> x.getError()).toList());
+
+                cache.put(lastRefreshResultKey, refreshResult);
+
+                LocalDateTime endTime = setCacheTime(lastUpdateTimeKey);
+
+                AtomicLong lastUpdateDuration = (AtomicLong)cache.get(lastUpdateDurationKey);
                 lastUpdateDuration.set(ChronoUnit.SECONDS.between(start, endTime));
             } catch (Exception e) {
                 log.error("Scheduled refresh failed with: ", e);
@@ -91,20 +123,22 @@ public class RefreshManager {
     public RefreshRequestResponse userRefresh() {
         RefreshRequestResponse response = new RefreshRequestResponse();
         LocalDateTime curr = LocalDateTime.now();
-        long diff = ChronoUnit.SECONDS.between(curr, lastUpdateTime.get());
-        if (diff < userInterval) {
-            log.debug("User request update is less than {} seconds from the previous successful update, skipping", userInterval);
-            response.setLastResult(aggResult.get());
-            response.setInfo(String.format("Data was refreshed recently, please wait %d minutes and try again", (userInterval - diff) / 60 + 1));
+        LocalDateTime lastUpdateTime = getCacheTime(lastUpdateTimeKey);
+        long diff = ChronoUnit.SECONDS.between(lastUpdateTime, curr);
+
+        if (diff < userIntervalSeconds) {
+            log.debug("User request update is less than {} seconds from the previous successful update, skipping", userIntervalSeconds);
+            response.setRefreshResult(getLastRefreshResult());
+            response.setFurtherInfo(String.format("Data was refreshed recently, please wait %d minutes and try again", (userIntervalSeconds - diff) / 60 + 1));
             return response;
         }
 
         if (performRefresh()) {
-            response.setLastResult(aggregateClient.getAggregationResult());
+            response.setRefreshResult(getLastRefreshResult());
         } else {
             // time to wait before attempting to fetch fresh results
-            long timeSinceStart = ChronoUnit.SECONDS.between(currUpdateStartTime.get(), curr) * waitDurationMultiplier;
-            long diffFromLastDuration = lastUpdateDuration.get() - timeSinceStart;
+            long timeSinceStart = ChronoUnit.SECONDS.between(getCacheTime(currUpdateStartTimeKey), curr) * waitDurationMultiplier;
+            long diffFromLastDuration = getLastUpdateDuration() - timeSinceStart;
             long withBuffer = diffFromLastDuration * waitDurationMultiplier;
             response.setDurationToWait(withBuffer);
         }
@@ -112,4 +146,22 @@ public class RefreshManager {
         return response;
     }
 
+    private LocalDateTime setCacheTime(String key) {
+        LocalDateTime time = LocalDateTime.now();
+        AtomicReference<LocalDateTime> currTime = (AtomicReference<LocalDateTime>)cache.get(key);
+        currTime.set(time);
+        return time;
+    }
+
+    private LocalDateTime getCacheTime(String key) {
+        return ((AtomicReference<LocalDateTime>)cache.get(key)).get();
+    }
+
+    private long getLastUpdateDuration() {
+        return ((AtomicLong)cache.get(lastUpdateDurationKey)).get();
+    }
+
+    public RefreshResult getLastRefreshResult() {
+        return ((RefreshResult) cache.get(lastRefreshResultKey));
+    }
 }
