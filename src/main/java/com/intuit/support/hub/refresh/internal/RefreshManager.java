@@ -50,11 +50,6 @@ public class RefreshManager {
         cache.put(lastUpdateDurationKey, new AtomicLong(1));
     }
 
-    // private AtomicReference<Collection<AggregationResult>> aggResult = new AtomicReference<>();
-    // private AtomicReference<LocalDateTime> lastUpdateTime = new AtomicReference<>();
-
-    // private AtomicReference<LocalDateTime> currUpdateStartTime = new AtomicReference<>();
-
     private Lock updateLock = new ReentrantLock();
 
     @Value("${user.interval.seconds}")
@@ -67,8 +62,6 @@ public class RefreshManager {
     private AggregateClient aggregateClient;
     @Autowired
     private FetchClient fetchClient;
-
-    // private AtomicLong lastUpdateDuration = new AtomicLong(10);
 
     @PostConstruct
     public void init() {
