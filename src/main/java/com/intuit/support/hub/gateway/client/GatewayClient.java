@@ -1,9 +1,9 @@
 package com.intuit.support.hub.gateway.client;
 
 import com.intuit.support.hub.aggregate.client.AggregateClient;
-import com.intuit.support.hub.aggregate.client.entities.AggregationResult;
 import com.intuit.support.hub.fetch.client.entities.SupportCase;
 import com.intuit.support.hub.refresh.client.responses.RefreshRequestResponse;
+import com.intuit.support.hub.refresh.client.responses.RefreshResult;
 import com.intuit.support.hub.refresh.internal.RefreshManager;
 import com.intuit.support.hub.search.client.SearchClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Collection;
 import java.util.List;
 
 @RestController
@@ -34,9 +33,9 @@ public class GatewayClient {
         return refreshClient.userRefresh();
     }
 
-    @GetMapping("/aggregated")
-    public Collection<AggregationResult> getAggregatedData() {
-        return aggregateClient.getAggregationResult();
+    @GetMapping("/results")
+    public RefreshResult getLastRefreshResult() {
+        return refreshClient.getLastRefreshResult();
     }
 
     @GetMapping("/searchByError")
@@ -53,5 +52,4 @@ public class GatewayClient {
     public List<SupportCase> findByStatus(@RequestParam String status) {
         return searchClient.findByStatus(status);
     }
-
 }

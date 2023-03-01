@@ -14,11 +14,7 @@ public class AggregateClient {
     @Autowired
     AggregationManager manager;
 
-    public Collection<AggregationResult> updateAggregation(List<SupportCase> cases) {
-        return manager.updateAggregation(cases);
-    }
-
-    public Collection<AggregationResult> getAggregationResult() {
-        return manager.getAggregationResult();
+    public Collection<AggregationResult> aggregate(List<SupportCase> cases) {
+        return manager.aggregate(cases);
     }
 }

@@ -6,6 +6,8 @@ import com.intuit.support.hub.aggregate.internal.AggregationManager;
 import com.intuit.support.hub.fetch.client.FetchClient;
 import com.intuit.support.hub.fetch.client.entities.SupportCase;
 import com.intuit.support.hub.fetch.client.responses.RefreshCRMResult;
+import com.intuit.support.hub.refresh.client.RefreshClient;
+import com.intuit.support.hub.refresh.client.responses.RefreshResult;
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -24,18 +26,21 @@ public class RefreshManagerTest {
     FetchClient fetchClient;
 
     @Autowired
-    AggregationManager aggregationManager;
+    RefreshClient refreshClient;
 
     @Test
     public void performRefresh() {
         prepareFetchResponse();
         manager.performRefresh();
-        Collection<AggregationResult> actual = aggregationManager.getAggregationResult();
+        RefreshResult actual = refreshClient.getLastRefreshResult();
+
         AggregationResult expected = new AggregationResult();
+
         expected.setId(new AggregationResultKey("1", "ProductA"));
         expected.setCases(Arrays.asList("crm1:1", "crm2:2"));
 
-        Assert.assertEquals(expected, actual.iterator().next());
+        Assert.assertEquals(expected, actual.getAggResult().iterator().next());
+        Assert.assertEquals("Failed to update crm3", actual.getErrors().get(0));
     }
 
     private void prepareFetchResponse() {
@@ -68,6 +73,10 @@ public class RefreshManagerTest {
         res2.setCrmName("crm2");
         res2.setCases(Arrays.asList(expected2, expected3));
 
-        Mockito.when(fetchClient.refreshAll()).thenReturn(Arrays.asList(res1, res2));
+        RefreshCRMResult res3 = new RefreshCRMResult();
+        res3.setCrmName("crm3");
+        res3.setError("Failed to update crm3");
+
+        Mockito.when(fetchClient.refreshAll()).thenReturn(Arrays.asList(res1, res2, res3));
     }
 }

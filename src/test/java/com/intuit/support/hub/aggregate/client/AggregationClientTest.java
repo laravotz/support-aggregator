@@ -25,7 +25,7 @@ public class AggregationClientTest {
         SupportCase caseC = createCase("1", "Product B", "1", "crmA", "Open");
         SupportCase caseD = createCase("2", "Product A", "1", "crmA","Open");
 
-        Collection<AggregationResult> res =  aggregateClient.updateAggregation(Arrays.asList(caseA, caseB, caseC, caseD));
+        Collection<AggregationResult> res =  aggregateClient.aggregate(Arrays.asList(caseA, caseB, caseC, caseD));
 
         AggregationResultKey expectedProductAErr1 = new AggregationResultKey("1", "Product A");
         AggregationResultKey expectedProductBErr1 = new AggregationResultKey("1", "Product B");
@@ -39,16 +39,16 @@ public class AggregationClientTest {
     @Test
     public void closeCase() {
         SupportCase caseA = createCase("1", "Product A", "1", "crmA","Close");
-        Collection<AggregationResult> res =  aggregateClient.updateAggregation(Arrays.asList(caseA));
+        Collection<AggregationResult> res =  aggregateClient.aggregate(Arrays.asList(caseA));
         Assert.assertTrue("Aggregation result should be empty", res.isEmpty());
     }
 
     @Test
     public void multipleRefreshes() {
         SupportCase caseA = createCase("1", "Product A", "1", "crmA","Open");
-        aggregateClient.updateAggregation(Arrays.asList(caseA));
+        aggregateClient.aggregate(Arrays.asList(caseA));
         SupportCase caseB = createCase("2", "Product B", "1", "crmA","Open");
-        Collection<AggregationResult> res =  aggregateClient.updateAggregation(Arrays.asList(caseB));
+        Collection<AggregationResult> res =  aggregateClient.aggregate(Arrays.asList(caseB));
         Assert.assertTrue("Aggregation result should have one item", res.size() == 1);
         Assert.assertEquals(res.iterator().next().getId().getProduct(), "Product B");
     }
